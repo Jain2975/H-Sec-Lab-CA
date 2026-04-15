@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Secure Library Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      /* Base + Nexus-like tokens */
+      :root {
+        --color-bg: #f7f6f2;
+        --color-surface: #ffffff;
+        --color-text: #28251d;
+        --color-text-muted: #7a7974;
+        --color-primary: #01696f;
+        --color-primary-hover: #0c4e54;
+        --color-error: #a12c7b;
+        --color-success: #437a22;
+        --color-border: #d4d1ca;
+        --radius-md: 0.5rem;
+        --radius-lg: 0.75rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.25rem;
+        --space-6: 1.5rem;
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --text-base: 16px;
+        --text-sm: 14px;
+        --text-lg: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background: var(--color-bg);
+        color: var(--color-text);
+        font-size: var(--text-base);
+        line-height: 1.6;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: var(--space-6);
+      }
+
+      .container {
+        width: 100%;
+        max-width: 380px;
+        padding: var(--space-6);
+        background: var(--color-surface);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+      }
+
+      h2 {
+        text-align: center;
+        margin-bottom: var(--space-5);
+        font-size: var(--text-lg);
+      }
+
+      input {
+        width: 100%;
+        padding: var(--space-3);
+        margin: var(--space-2) 0;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+      }
+
+      button {
+        width: 100%;
+        padding: var(--space-3);
+        background: var(--color-primary);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: var(--text-sm);
+        margin-top: var(--space-3);
+        transition: background 0.18s;
+      }
+
+      button:hover {
+        background: var(--color-primary-hover);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      button.logout {
+        background: var(--color-error);
+        margin-top: var(--space-2);
+      }
+
+      button.logout:hover {
+        background: #7d1e5e;
+      }
+
+      #msg {
+        margin-top: var(--space-4);
+        font-size: var(--text-sm);
+        text-align: center;
+        min-height: 1.2em;
+      }
+
+      #msg.error {
+        color: var(--color-error);
+      }
+
+      #msg.success {
+        color: var(--color-success);
+      }
+
+      .book-list {
+        text-align: left;
+        margin-top: var(--space-5);
+        border-top: 1px solid var(--color-border);
+        padding-top: var(--space-4);
+      }
+
+      .book-item {
+        padding: var(--space-2) 0;
+        font-size: var(--text-sm);
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Library Portal</h2>
+
+      <div id="auth-form">
+        <input id="username" placeholder="Username" autocomplete="username" />
+        <input
+          id="password"
+          type="password"
+          placeholder="Password"
+          autocomplete="current-password"
+        />
+        <button id="login-btn" onclick="handleLogin()">Sign In</button>
+      </div>
+
+      <button id="logout-btn" class="logout hidden" onclick="handleLogout()">
+        Sign Out
+      </button>
+
+      <p id="msg" aria-live="polite"></p>
+
+      <div id="books-section" class="hidden">
+        <div id="books" class="book-list"></div>
+      </div>
+    </div>
+
+    <script>
+      let csrfToken = "";
+
+      async function fetchToken() {
+        try {
+          const res = await fetch("/api/csrf-token", {
+            credentials: "include",
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          csrfToken = data.token;
+        } catch (e) {
+          console.error("Failed to fetch CSRF token");
+        }
+      }
+
+      function showMessage(text, type = "") {
+        const msgEl = document.getElementById("msg");
+        msgEl.textContent = text;
+        msgEl.className = type;
+      }
+
+      async function handleLogin() {
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+        const loginBtn = document.getElementById("login-btn");
+        const authForm = document.getElementById("auth-form");
+
+        if (!username || !password) {
+          showMessage("Username and password are required.", "error");
+          return;
+        }
+
+        loginBtn.disabled = true;
+        showMessage("Authenticating...", "");
+
+        try {
+          const res = await fetch("/api/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "CSRF-Token": csrfToken,
+            },
+            credentials: "include",
+            body: JSON.stringify({ username, password }),
+          });
+
+          const data = await res.json();
+          if (res.ok) {
+            showMessage("Access Granted.", "success");
+            authForm.classList.add("hidden");
+            document.getElementById("logout-btn").classList.remove("hidden");
+            document.getElementById("books-section").classList.remove("hidden");
+            await loadBooks();
+          } else {
+            showMessage(data.error || "Login failed.", "error");
+            loginBtn.disabled = false;
+          }
+        } catch (err) {
+          showMessage("Network error. Try again.", "error");
+          loginBtn.disabled = false;
+        }
+      }
+
+      async function loadBooks() {
+        const booksDiv = document.getElementById("books");
+        const booksSection = document.getElementById("books-section");
+        booksDiv.innerHTML = "";
+
+        try {
+          const res = await fetch("/api/books", {
+            credentials: "include",
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            booksSection.classList.add("hidden");
+            showMessage(data.error || "Failed to load books.", "error");
+            return;
+          }
+
+          booksSection.classList.remove("hidden");
+
+          if (Array.isArray(data.books) && data.books.length > 0) {
+            data.books.forEach((b) => {
+              const item = document.createElement("div");
+              item.className = "book-item";
+              // XSS Prevention: use textContent
+              item.textContent = `📖 ${b.title} by ${b.author}`;
+              booksDiv.appendChild(item);
+            });
+          } else {
+            booksDiv.textContent = "No books available.";
+          }
+        } catch (err) {
+          booksSection.classList.add("hidden");
+          showMessage("Failed to load books.", "error");
+        }
+      }
+
+      async function handleLogout() {
+        try {
+          await fetch("/api/logout", {
+            method: "POST",
+            headers: {
+              "CSRF-Token": csrfToken,
+            },
+            credentials: "include",
+          });
+        } catch (err) {
+          // Ignore logout errors
+        }
+
+        document.getElementById("auth-form").classList.remove("hidden");
+        document.getElementById("logout-btn").classList.add("hidden");
+        document.getElementById("books-section").classList.add("hidden");
+        document.getElementById("username").value = "";
+        document.getElementById("password").value = "";
+        document.getElementById("books").innerHTML = "";
+        showMessage("Logged out successfully.", "success");
+
+        // Re-fetch CSRF token after logout
+        await fetchToken();
+      }
+
+      // Initialize
+      fetchToken();
+    </script>
+  </body>
+</html>

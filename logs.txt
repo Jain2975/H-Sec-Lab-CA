@@ -1,0 +1,7 @@
+[2026-04-15T17:22:41.013Z] AUTH_SUCCESS: User=a***n
+{"timestamp":"2026-04-15T17:30:56.357Z","action":"SERVER_START","user":"s***m","ip":"localhost","success":true,"message":"Server started on port 3000"}
+{"timestamp":"2026-04-15T17:32:03.181Z","action":"ACCESS_DENIED","user":"u***n","ip":"::1","success":false,"message":"Unauthorized access attempt"}
+{"timestamp":"2026-04-15T17:32:21.129Z","action":"LOGIN_SUCCESS","user":"a***n","ip":"::1","success":true,"message":"Login successful"}
+{"timestamp":"2026-04-15T17:32:21.148Z","action":"VIEW_BOOKS","user":"a***n","ip":"::1","success":true,"message":"Listed books"}
+{"timestamp":"2026-04-15T17:32:25.204Z","action":"DELETE_BOOK","user":"a***n","ip":"::1","success":true,"message":"Deleted book: Clean Code"}
+{"timestamp":"2026-04-15T17:32:25.219Z","action":"VIEW_BOOKS","user":"a***n","ip":"::1","success":true,"message":"Listed books"}
