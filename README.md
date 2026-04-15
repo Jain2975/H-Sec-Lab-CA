@@ -7,4 +7,7 @@
   ### npm i
   ### node server.js
 # TO run tests:  
-## Manual Testing or pip install semgrep -> semgrep scan --config=auto
+## Manual Testing 
+## OR
+##  $env:PYTHONUTF8=1
+## semgrep scan --config=auto
