@@ -17,13 +17,14 @@ const app = express();
 const PORT = 3000;
 const isProd = process.env.NODE_ENV === "production";
 
-// In-memory session store (for demo; use Redis/db in production)
+// In-memory session store for demo
 const sessions = new Map();
 
-// In-memory book store (for demo; use DB in production)
+// In-memory book store (for demo)
 let books = [
   { id: 1, title: "Clean Code", author: "Robert Martin" },
   { id: 2, title: "The Pragmatic Programmer", author: "Andrew Hunt" },
+   {id: 3, title: "Ikigai" , author: "Some Japanese Man" },
 ];
 
 // 1. SECURITY MIDDLEWARE
@@ -40,7 +41,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // Vite dev server
+    origin: "http://localhost:5173", 
     credentials: true,
   }),
 );
@@ -161,12 +162,11 @@ app.get("/api/csrf-token", csrfProtection, (req, res) => {
   res.json({ token: req.csrfToken() });
 });
 
-// LOGIN (Exp 3, 5, 6, 7)
 app.post("/api/login", loginLimiter, csrfProtection, async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Validate input (Exp 2)
+    // Validate input 
     if (!validateUsername(username) || !validatePassword(password)) {
       secureLog("LOGIN_MALFORMED", username || "unknown", {
         success: false,
@@ -178,7 +178,7 @@ app.post("/api/login", loginLimiter, csrfProtection, async (req, res) => {
 
     const user = users.find((u) => u.username === username);
 
-    // Timing-constant user enumeration defense (Exp 7)
+    // Timing-constant user enumeration defense 
     if (!user) {
       await bcrypt.compare("dummy_password", DUMMY_HASH);
       secureLog("LOGIN_FAIL_USER_NOT_FOUND", username, {
@@ -199,7 +199,7 @@ app.post("/api/login", loginLimiter, csrfProtection, async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
-    // Create server-side session (Exp 6, 8)
+    // Create server-side session 
     const sessionId = crypto.randomBytes(32).toString("hex");
     sessions.set(sessionId, {
       userId: user.id,
@@ -222,7 +222,7 @@ app.post("/api/login", loginLimiter, csrfProtection, async (req, res) => {
 
     res.json({ message: "Access Granted.", user: { username: user.username } });
   } catch (err) {
-    // Do not leak stack trace (Exp 7)
+    // Do not leak stack trace 
     console.error("Login error");
     secureLog("LOGIN_ERROR", username || "unknown", {
       success: false,
@@ -259,6 +259,38 @@ app.get("/api/books", requireAuth, (req, res) => {
   });
   res.json({ books });
 });
+//OLD
+
+// // ADD BOOK (requires auth + CSRF)
+// app.post("/api/books", requireAuth, csrfProtection, (req, res) => {
+//   const { title, author } = req.body;
+//   const user = req.user;
+
+//   if (!validateBookTitle(title) || !validateBookAuthor(author)) {
+//     secureLog("ADD_BOOK_INVALID_INPUT", user.username, {
+//       success: false,
+//       message: "Invalid book data",
+//       ip: req.ip,
+//     });
+//     return res.status(400).json({ error: "Invalid book data." });
+//   }
+
+//   const newBook = {
+//     id: books.length > 0 ? Math.max(...books.map((b) => b.id)) + 1 : 1,
+//     title: title.trim(),
+//     author: author.trim(),
+//   };
+
+//   books.push(newBook);
+
+//   secureLog("ADD_BOOK", user.username, {
+//     success: true,
+//     message: `Added book: ${newBook.title}`,
+//     ip: req.ip,
+//   });
+
+//   res.status(201).json({ message: "Book added.", book: newBook });
+// });
 
 // ADD BOOK (requires auth + CSRF)
 app.post("/api/books", requireAuth, csrfProtection, (req, res) => {
@@ -266,22 +298,22 @@ app.post("/api/books", requireAuth, csrfProtection, (req, res) => {
   const user = req.user;
 
   if (!validateBookTitle(title) || !validateBookAuthor(author)) {
-    secureLog("ADD_BOOK_INVALID_INPUT", user.username, {
-      success: false,
-      message: "Invalid book data",
-      ip: req.ip,
-    });
     return res.status(400).json({ error: "Invalid book data." });
   }
 
+  
+  const nextId = books.length === 0 
+    ? 1 
+    : Math.max(...books.map(b => b.id)) + 1;
+
   const newBook = {
-    id: books.length > 0 ? Math.max(...books.map((b) => b.id)) + 1 : 1,
+    id: nextId,
     title: title.trim(),
     author: author.trim(),
   };
 
   books.push(newBook);
-
+  
   secureLog("ADD_BOOK", user.username, {
     success: true,
     message: `Added book: ${newBook.title}`,
@@ -291,12 +323,44 @@ app.post("/api/books", requireAuth, csrfProtection, (req, res) => {
   res.status(201).json({ message: "Book added.", book: newBook });
 });
 
+//OLD
 // DELETE BOOK (requires auth + CSRF)
+// app.delete("/api/books/:id", requireAuth, csrfProtection, (req, res) => {
+//   const id = parseInt(req.params.id, 10);
+//   const user = req.user;
+
+//   const idx = books.findIndex((b) => b.id === id);
+//   if (idx === -1) {
+//     secureLog("DELETE_BOOK_NOT_FOUND", user.username, {
+//       success: false,
+//       message: `Book ID ${id} not found`,
+//       ip: req.ip,
+//     });
+//     return res.status(404).json({ error: "Book not found." });
+//   }
+
+//   const deletedBook = books.splice(idx, 1)[0];
+
+//   secureLog("DELETE_BOOK", user.username, {
+//     success: true,
+//     message: `Deleted book: ${deletedBook.title}`,
+//     ip: req.ip,
+//   });
+
+//   res.json({ message: "Book deleted.", book: deletedBook });
+// });
+
+
 app.delete("/api/books/:id", requireAuth, csrfProtection, (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const user = req.user;
+  
+  if (isNaN(id)) {
+    return res.status(400).json({ error: "Invalid Book ID format." });
+  }
 
-  const idx = books.findIndex((b) => b.id === id);
+  const user = req.user;
+  const idx = books.findIndex((b) => b.id === id);  
+  
   if (idx === -1) {
     secureLog("DELETE_BOOK_NOT_FOUND", user.username, {
       success: false,
